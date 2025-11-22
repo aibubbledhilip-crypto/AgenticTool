@@ -28,19 +28,27 @@ def get_dvsum_client(config: dict = None) -> DVSumClient:
     global dvsum_client
 
     if config:
+        # Configuration provided via API
         dvsum_client = DVSumClient(
-            base_url=config.get('base_url', os.getenv('DVSUM_API_BASE_URL', '')),
-            api_key=config.get('api_key', os.getenv('DVSUM_API_KEY', '')),
-            tenant_id=config.get('tenant_id', os.getenv('DVSUM_TENANT_ID'))
+            client_id=config.get('client_id', os.getenv('DVSUM_CLIENT_ID', '')),
+            client_secret=config.get('client_secret', os.getenv('DVSUM_CLIENT_SECRET', '')),
+            base_url=config.get('base_url', os.getenv('DVSUM_API_BASE_URL')),
+            auth_url=config.get('auth_url', os.getenv('DVSUM_AUTH_URL')),
+            tenant_id=config.get('tenant_id', os.getenv('DVSUM_TENANT_ID')),
+            websocket_url=config.get('websocket_url', os.getenv('DVSUM_WEBSOCKET_URL'))
         )
     elif dvsum_client is None:
-        base_url = os.getenv('DVSUM_API_BASE_URL', '')
-        api_key = os.getenv('DVSUM_API_KEY', '')
-        if base_url and api_key:
+        # Initialize from environment variables
+        client_id = os.getenv('DVSUM_CLIENT_ID', '')
+        client_secret = os.getenv('DVSUM_CLIENT_SECRET', '')
+        if client_id and client_secret:
             dvsum_client = DVSumClient(
-                base_url=base_url,
-                api_key=api_key,
-                tenant_id=os.getenv('DVSUM_TENANT_ID')
+                client_id=client_id,
+                client_secret=client_secret,
+                base_url=os.getenv('DVSUM_API_BASE_URL'),
+                auth_url=os.getenv('DVSUM_AUTH_URL'),
+                tenant_id=os.getenv('DVSUM_TENANT_ID'),
+                websocket_url=os.getenv('DVSUM_WEBSOCKET_URL')
             )
 
     return dvsum_client
@@ -79,7 +87,9 @@ def get_config():
     client = get_dvsum_client()
     return jsonify({
         'configured': client is not None,
-        'base_url': os.getenv('DVSUM_API_BASE_URL', '') if client else None
+        'base_url': client.base_url if client else os.getenv('DVSUM_API_BASE_URL', ''),
+        'auth_url': client.auth_url if client else os.getenv('DVSUM_AUTH_URL', ''),
+        'websocket_url': client.websocket_url if client else os.getenv('DVSUM_WEBSOCKET_URL', '')
     })
 
 
@@ -88,18 +98,26 @@ def set_config():
     """Set DVSum API configuration."""
     data = request.json
 
-    if not data.get('base_url') or not data.get('api_key'):
+    if not data.get('client_id') or not data.get('client_secret'):
         return jsonify({
             'success': False,
-            'error': 'base_url and api_key are required'
+            'error': 'client_id and client_secret are required'
         }), 400
 
     try:
-        get_dvsum_client(data)
-        return jsonify({
-            'success': True,
-            'message': 'Configuration saved successfully'
-        })
+        client = get_dvsum_client(data)
+        # Test the connection
+        test_result = client.test_connection()
+        if test_result.get('success'):
+            return jsonify({
+                'success': True,
+                'message': 'Configuration saved and authenticated successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': test_result.get('error', 'Authentication failed')
+            }), 401
     except Exception as e:
         return jsonify({
             'success': False,

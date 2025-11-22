@@ -10,12 +10,15 @@ A web-based GUI application for automating tasks using DVSum's Agentic AI platfo
 - **Data Source Integration**: Connect and query multiple data sources
 - **Data Quality Monitoring**: Run DQ checks and view exceptions
 - **Execution History**: Track all operations and their outcomes
+- **Dashboard Management**: Create and manage dashboards with widgets
+- **Asset Management**: Full CRUD operations on Terms, Tables, Columns, and more
+- **Audit Trail**: Track all changes with comprehensive audit logging
 
 ## Prerequisites
 
 - Python 3.8 or higher
 - pip (Python package manager)
-- DVSum API credentials
+- DVSum OAuth2 credentials (Client ID and Client Secret)
 
 ## Installation
 
@@ -44,19 +47,39 @@ cp .env.example .env
 
 ## Configuration
 
-Edit the `.env` file with your DVSum API credentials:
+Edit the `.env` file with your DVSum OAuth2 credentials:
 
 ```env
 # DVSum API Configuration
-DVSUM_API_BASE_URL=https://apis-doc.dvsum.ai
-DVSUM_API_KEY=your_dvsum_api_key_here
-DVSUM_TENANT_ID=your_tenant_id_here  # Optional
+# Authentication URL for OAuth2 token exchange
+DVSUM_AUTH_URL=https://auth.dvsum.ai/oauth2/token
+
+# API Base URL for all DVSum API calls
+DVSUM_API_BASE_URL=https://apis.dvsum.ai
+
+# OAuth2 Client Credentials (required)
+# Obtain these from your DVSum account settings
+DVSUM_CLIENT_ID=your_client_id_here
+DVSUM_CLIENT_SECRET=your_client_secret_here
+
+# Optional: Tenant ID for multi-tenant setups
+DVSUM_TENANT_ID=your_tenant_id_here
+
+# AI Agent WebSocket URL (for real-time AI queries)
+DVSUM_WEBSOCKET_URL=wss://17ew4pfncd.execute-api.us-west-2.amazonaws.com/prod
 
 # Server Configuration
 FLASK_HOST=0.0.0.0
 FLASK_PORT=5000
 FLASK_DEBUG=True
 ```
+
+### Authentication
+
+DVSum uses OAuth2 client credentials flow:
+1. Your `DVSUM_CLIENT_ID` and `DVSUM_CLIENT_SECRET` are combined and base64 encoded
+2. A token is obtained from the auth endpoint (`https://auth.dvsum.ai/oauth2/token`)
+3. The access token is automatically refreshed when expired
 
 Alternatively, you can configure the API credentials through the Settings page in the GUI.
 
@@ -117,6 +140,40 @@ Monitor data quality:
 - View exceptions by severity
 - Track quality metrics over time
 
+## Possible Automations
+
+Based on the DVSum API, here are the automations you can build:
+
+### 1. Data Governance Automations
+- **Auto-classify new columns**: Automatically apply data classification tags when new columns are discovered
+- **Bulk update asset metadata**: Mass update descriptions, owners, stewards across multiple assets
+- **Automated term linking**: Link glossary terms to columns based on naming patterns
+
+### 2. Data Quality Automations
+- **Scheduled profiling jobs**: Run data profiling on a schedule
+- **Exception alerting**: Monitor and alert on DQ exceptions
+- **Auto-remediation workflows**: Trigger workflows when quality thresholds are breached
+
+### 3. Workflow Automations
+- **Approval automation**: Auto-approve/reject based on rules
+- **Scheduled job execution**: Run integration jobs on schedule
+- **Chain workflows**: Execute dependent workflows sequentially
+
+### 4. Dashboard & Reporting
+- **Auto-generate reports**: Create widgets and dashboards programmatically
+- **Scheduled exports**: Export audit logs and analytics on schedule
+- **Custom analytics dashboards**: Build real-time monitoring dashboards
+
+### 5. AI Agent Automations
+- **Automated analysis**: Run AI queries on schedule
+- **Chatbot integration**: Integrate with Slack/Teams for data questions
+- **Smart alerts**: AI-powered anomaly detection and alerting
+
+### 6. Asset Lifecycle Management
+- **Auto-deprecation**: Mark unused assets as deprecated
+- **Lineage tracking**: Automatically update relationships
+- **Change tracking**: Monitor and report on asset changes via audit trail
+
 ## Project Structure
 
 ```
@@ -124,7 +181,7 @@ AgenticTool/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py           # Flask application
-│   ├── dvsum_client.py   # DVSum API client
+│   ├── dvsum_client.py   # DVSum API client (OAuth2)
 │   └── agentic_engine.py # Agentic AI engine
 ├── static/
 │   ├── index.html        # Main HTML page
@@ -145,7 +202,7 @@ The application exposes the following API endpoints:
 
 ### Configuration
 - `GET /api/config` - Get configuration status
-- `POST /api/config` - Set API configuration
+- `POST /api/config` - Set API configuration (client_id, client_secret)
 - `POST /api/test-connection` - Test API connection
 
 ### Agentic AI
@@ -173,6 +230,33 @@ The application exposes the following API endpoints:
 - `POST /api/dataquality/check` - Run DQ check
 - `GET /api/dataquality/exceptions` - Get DQ exceptions
 
+## DVSum API Reference
+
+The DVSumClient supports the following API categories:
+
+| Category | Description |
+|----------|-------------|
+| Dashboard | Manage dashboards and widgets |
+| Asset Listing | Governance views, search, mass updates |
+| Assets (Nodes) | CRUD for Terms, Tables, Columns, Rules |
+| Workflow | Approval workflows (submit, approve, reject) |
+| AI Agent | Execute AI queries via WebSocket |
+| Job Execution | Run and monitor integration jobs |
+| Audit Trail | Query and export audit logs |
+
+### Node Types
+| Code | Type |
+|------|------|
+| TRM | Glossary Term |
+| TBL | Table |
+| COL | Column |
+| RLS | Rules |
+| DSR | Dataset/Report |
+| ANL | Analysis/ChatBots |
+| RFD | Reference Dictionary |
+| JOB | Jobs |
+| SCH | Executions |
+
 ## Development
 
 To run in development mode with auto-reload:
@@ -186,4 +270,5 @@ MIT License
 
 ## Support
 
-For DVSum API documentation, visit: https://apis-doc.dvsum.ai/
+- DVSum API Documentation: https://apis-doc.dvsum.ai/
+- For issues with this tool, please open a GitHub issue
