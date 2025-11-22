@@ -39,6 +39,10 @@
                     <span class="nav-icon">&#9989;</span>
                     <span>Data Quality</span>
                 </a>
+                <a href="#" class="nav-item" data-section="dashboards">
+                    <span class="nav-icon">&#128202;</span>
+                    <span>Dashboards</span>
+                </a>
                 <a href="#" class="nav-item" data-section="history">
                     <span class="nav-icon">&#128336;</span>
                     <span>History</span>
@@ -189,6 +193,82 @@
                     </div>
                 </section>
 
+                <!-- Dashboards Section -->
+                <section class="content-section" id="section-dashboards">
+                    <div class="section-header">
+                        <h2>Dashboards</h2>
+                        <div class="header-actions">
+                            <button class="btn btn-secondary" onclick="refreshDashboards()">
+                                Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Selector -->
+                    <div class="dashboard-selector">
+                        <label for="dashboard-select">Select Dashboard:</label>
+                        <select id="dashboard-select" onchange="onDashboardChange()">
+                            <option value="">-- Select a Dashboard --</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="setCurrentDashboard()" id="set-current-btn" disabled>
+                            Set as Current
+                        </button>
+                    </div>
+
+                    <!-- Current Dashboard Info -->
+                    <div class="current-dashboard-info" id="current-dashboard-info">
+                        <span class="label">Current Dashboard:</span>
+                        <span class="value" id="current-dashboard-name">Not set</span>
+                    </div>
+
+                    <!-- Widgets Section -->
+                    <div class="widgets-section" id="widgets-section" style="display: none;">
+                        <div class="widgets-header">
+                            <h3>Widgets</h3>
+                            <button class="btn btn-primary" onclick="openModal('create-widget-modal')">
+                                + Add Widget
+                            </button>
+                        </div>
+                        <div class="widgets-grid" id="widgets-grid">
+                            <div class="loading-placeholder">Select a dashboard to view widgets</div>
+                        </div>
+                    </div>
+
+                    <!-- Widget Data View -->
+                    <div class="widget-data-view" id="widget-data-view" style="display: none;">
+                        <div class="widget-data-header">
+                            <h3 id="widget-data-title">Widget Data</h3>
+                            <button class="btn btn-secondary" onclick="closeWidgetData()">Close</button>
+                        </div>
+                        <div class="widget-data-controls">
+                            <div class="control-group">
+                                <label for="widget-page-size">Page Size:</label>
+                                <select id="widget-page-size" onchange="refreshWidgetData()">
+                                    <option value="10">10</option>
+                                    <option value="25" selected>25</option>
+                                    <option value="50">50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label for="widget-sort-by">Sort:</label>
+                                <select id="widget-sort-by" onchange="refreshWidgetData()">
+                                    <option value="asc">Ascending</option>
+                                    <option value="desc">Descending</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="widget-data-content" id="widget-data-content">
+                            <div class="loading-placeholder">Loading widget data...</div>
+                        </div>
+                        <div class="widget-pagination" id="widget-pagination">
+                            <button class="btn btn-secondary" onclick="prevWidgetPage()" id="prev-page-btn" disabled>Previous</button>
+                            <span id="page-info">Page 1</span>
+                            <button class="btn btn-secondary" onclick="nextWidgetPage()" id="next-page-btn">Next</button>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- History Section -->
                 <section class="content-section" id="section-history">
                     <div class="section-header">
@@ -329,6 +409,41 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
                 <button class="btn btn-primary" onclick="connectDataSource()">Connect</button>
+            </div>
+        </div>
+
+        <!-- Create Widget Modal -->
+        <div class="modal" id="create-widget-modal">
+            <div class="modal-header">
+                <h3>Create New Widget</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="widget-name">Widget Name</label>
+                    <input type="text" id="widget-name" placeholder="My Widget">
+                </div>
+                <div class="form-group">
+                    <label for="widget-type">Widget Type</label>
+                    <select id="widget-type">
+                        <option value="chart">Chart</option>
+                        <option value="table">Table</option>
+                        <option value="metric">Metric Card</option>
+                        <option value="list">List</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="widget-description">Description</label>
+                    <textarea id="widget-description" placeholder="Describe what this widget displays..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="widget-config">Configuration (JSON)</label>
+                    <textarea id="widget-config" placeholder='{"dataSource": "...", "query": "..."}'></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createWidget()">Create Widget</button>
             </div>
         </div>
     </div>

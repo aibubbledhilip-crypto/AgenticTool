@@ -142,6 +142,50 @@ const api = {
     // Health
     async healthCheck() {
         return this.request('/api/health');
+    },
+
+    // Dashboards
+    async listDashboards() {
+        return this.request('/api/dashboards');
+    },
+
+    async getCurrentDashboard() {
+        return this.request('/api/dashboards/current');
+    },
+
+    async setCurrentDashboard(dashboardId) {
+        return this.request(`/api/dashboards/${dashboardId}/current`, {
+            method: 'POST'
+        });
+    },
+
+    async getDashboardWidgets(dashboardId) {
+        return this.request(`/api/dashboards/${dashboardId}/widgets`);
+    },
+
+    async createWidget(dashboardId, widgetConfig) {
+        return this.request(`/api/dashboards/${dashboardId}/widgets`, {
+            method: 'POST',
+            body: JSON.stringify(widgetConfig)
+        });
+    },
+
+    async getWidgetData(dashboardId, widgetId, params = {}) {
+        const queryParams = new URLSearchParams();
+        if (params.size) queryParams.set('size', params.size);
+        if (params.offset) queryParams.set('offset', params.offset);
+        if (params.sortKey) queryParams.set('sort_key', params.sortKey);
+        if (params.sortBy) queryParams.set('sort_by', params.sortBy);
+        if (params.timeZone) queryParams.set('time_zone', params.timeZone);
+
+        const query = queryParams.toString();
+        return this.request(`/api/dashboards/${dashboardId}/widgets/${widgetId}/data${query ? '?' + query : ''}`);
+    },
+
+    async deleteWidget(dashboardId, widgetId) {
+        return this.request(`/api/dashboards/${dashboardId}/widgets/${widgetId}`, {
+            method: 'DELETE'
+        });
     }
 };
 
@@ -169,6 +213,7 @@ function showSection(sectionName) {
         workflows: 'Automation Workflows',
         datasources: 'Data Sources',
         dataquality: 'Data Quality',
+        dashboards: 'Dashboards',
         history: 'Execution History',
         settings: 'Settings'
     };
@@ -193,6 +238,9 @@ async function loadSectionData(section) {
             break;
         case 'dataquality':
             await loadDQData();
+            break;
+        case 'dashboards':
+            await loadDashboards();
             break;
         case 'history':
             await loadHistory();
@@ -596,6 +644,332 @@ async function runDQCheck() {
     }
 }
 
+// ==================== Dashboard Functions ====================
+
+// Dashboard state
+const dashboardState = {
+    dashboards: [],
+    selectedDashboardId: null,
+    widgets: [],
+    currentWidgetId: null,
+    widgetDataPage: 0,
+    widgetDataPageSize: 25
+};
+
+async function loadDashboards() {
+    const select = document.getElementById('dashboard-select');
+    select.innerHTML = '<option value="">Loading dashboards...</option>';
+
+    // Load dashboards list
+    const response = await api.listDashboards();
+
+    if (response.success && response.data) {
+        dashboardState.dashboards = response.data;
+        select.innerHTML = '<option value="">-- Select a Dashboard --</option>';
+
+        if (Array.isArray(response.data) && response.data.length > 0) {
+            response.data.forEach(dashboard => {
+                const option = document.createElement('option');
+                option.value = dashboard.id || dashboard.dashboard_id;
+                option.textContent = dashboard.name || dashboard.title || `Dashboard ${dashboard.id}`;
+                select.appendChild(option);
+            });
+        } else if (typeof response.data === 'object') {
+            // Handle case where data might be a single object or nested
+            const dashboards = response.data.dashboards || [response.data];
+            dashboards.forEach(dashboard => {
+                const option = document.createElement('option');
+                option.value = dashboard.id || dashboard.dashboard_id;
+                option.textContent = dashboard.name || dashboard.title || `Dashboard ${dashboard.id}`;
+                select.appendChild(option);
+            });
+        }
+    } else {
+        select.innerHTML = '<option value="">No dashboards available</option>';
+        if (response.error) {
+            showToast(`Failed to load dashboards: ${response.error}`, 'error');
+        }
+    }
+
+    // Load current dashboard info
+    await loadCurrentDashboard();
+}
+
+async function loadCurrentDashboard() {
+    const response = await api.getCurrentDashboard();
+    const nameEl = document.getElementById('current-dashboard-name');
+
+    if (response.success && response.data) {
+        const dashboard = response.data;
+        nameEl.textContent = dashboard.name || dashboard.title || `Dashboard ${dashboard.id}`;
+        nameEl.dataset.dashboardId = dashboard.id || dashboard.dashboard_id;
+    } else {
+        nameEl.textContent = 'Not set';
+        nameEl.dataset.dashboardId = '';
+    }
+}
+
+function onDashboardChange() {
+    const select = document.getElementById('dashboard-select');
+    const setCurrentBtn = document.getElementById('set-current-btn');
+    const widgetsSection = document.getElementById('widgets-section');
+
+    dashboardState.selectedDashboardId = select.value;
+
+    if (select.value) {
+        setCurrentBtn.disabled = false;
+        widgetsSection.style.display = 'block';
+        loadDashboardWidgets(select.value);
+    } else {
+        setCurrentBtn.disabled = true;
+        widgetsSection.style.display = 'none';
+        document.getElementById('widgets-grid').innerHTML = '<div class="loading-placeholder">Select a dashboard to view widgets</div>';
+    }
+
+    // Hide widget data view
+    document.getElementById('widget-data-view').style.display = 'none';
+}
+
+async function setCurrentDashboard() {
+    if (!dashboardState.selectedDashboardId) {
+        showToast('Please select a dashboard first', 'warning');
+        return;
+    }
+
+    showToast('Setting current dashboard...', 'info');
+    const response = await api.setCurrentDashboard(dashboardState.selectedDashboardId);
+
+    if (response.success) {
+        showToast('Dashboard set as current', 'success');
+        await loadCurrentDashboard();
+    } else {
+        showToast(`Failed to set dashboard: ${response.error}`, 'error');
+    }
+}
+
+async function loadDashboardWidgets(dashboardId) {
+    const grid = document.getElementById('widgets-grid');
+    grid.innerHTML = '<div class="loading-placeholder"><div class="loading-spinner"></div>Loading widgets...</div>';
+
+    const response = await api.getDashboardWidgets(dashboardId);
+
+    if (response.success && response.data) {
+        const widgets = Array.isArray(response.data) ? response.data : (response.data.widgets || []);
+        dashboardState.widgets = widgets;
+
+        if (widgets.length === 0) {
+            grid.innerHTML = '<div class="no-data">No widgets in this dashboard. Add your first widget!</div>';
+        } else {
+            grid.innerHTML = widgets.map(widget => `
+                <div class="widget-card" data-widget-id="${widget.id || widget.widget_id}">
+                    <div class="widget-card-header">
+                        <div class="widget-title">${widget.name || widget.title || 'Unnamed Widget'}</div>
+                        <span class="widget-type">${widget.type || 'chart'}</span>
+                    </div>
+                    <div class="widget-description">${widget.description || 'No description'}</div>
+                    <div class="widget-actions">
+                        <button class="card-btn" onclick="viewWidgetData(${dashboardId}, ${widget.id || widget.widget_id})">View Data</button>
+                        <button class="card-btn danger" onclick="deleteWidgetConfirm(${dashboardId}, ${widget.id || widget.widget_id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } else {
+        grid.innerHTML = `<div class="no-data">Failed to load widgets: ${response.error || 'Unknown error'}</div>`;
+    }
+}
+
+async function viewWidgetData(dashboardId, widgetId) {
+    dashboardState.currentWidgetId = widgetId;
+    dashboardState.widgetDataPage = 0;
+
+    const dataView = document.getElementById('widget-data-view');
+    dataView.style.display = 'block';
+
+    // Find widget name
+    const widget = dashboardState.widgets.find(w => (w.id || w.widget_id) == widgetId);
+    document.getElementById('widget-data-title').textContent = widget ? (widget.name || widget.title || 'Widget Data') : 'Widget Data';
+
+    await fetchWidgetData(dashboardId, widgetId);
+}
+
+async function fetchWidgetData(dashboardId, widgetId) {
+    const contentEl = document.getElementById('widget-data-content');
+    contentEl.innerHTML = '<div class="loading-placeholder"><div class="loading-spinner"></div>Loading data...</div>';
+
+    const pageSize = parseInt(document.getElementById('widget-page-size').value);
+    const sortBy = document.getElementById('widget-sort-by').value;
+
+    const response = await api.getWidgetData(dashboardId, widgetId, {
+        size: pageSize,
+        offset: dashboardState.widgetDataPage * pageSize,
+        sortBy: sortBy
+    });
+
+    if (response.success && response.data) {
+        renderWidgetData(response.data);
+        updatePagination();
+    } else {
+        contentEl.innerHTML = `<div class="no-data">Failed to load data: ${response.error || 'Unknown error'}</div>`;
+    }
+}
+
+function renderWidgetData(data) {
+    const contentEl = document.getElementById('widget-data-content');
+
+    // Handle different data formats
+    if (Array.isArray(data)) {
+        if (data.length === 0) {
+            contentEl.innerHTML = '<div class="no-data">No data available</div>';
+            return;
+        }
+
+        // Render as table
+        const headers = Object.keys(data[0]);
+        contentEl.innerHTML = `
+            <div class="data-table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(row => `
+                            <tr>${headers.map(h => `<td>${formatValue(row[h])}</td>`).join('')}</tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } else if (typeof data === 'object') {
+        // Render as key-value pairs or nested structure
+        if (data.rows && Array.isArray(data.rows)) {
+            renderWidgetData(data.rows);
+        } else if (data.data && Array.isArray(data.data)) {
+            renderWidgetData(data.data);
+        } else {
+            contentEl.innerHTML = `
+                <div class="data-object">
+                    ${Object.entries(data).map(([key, value]) => `
+                        <div class="data-row">
+                            <span class="data-key">${key}:</span>
+                            <span class="data-value">${formatValue(value)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+    } else {
+        contentEl.innerHTML = `<div class="data-value">${data}</div>`;
+    }
+}
+
+function formatValue(value) {
+    if (value === null || value === undefined) return '-';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+}
+
+function updatePagination() {
+    document.getElementById('page-info').textContent = `Page ${dashboardState.widgetDataPage + 1}`;
+    document.getElementById('prev-page-btn').disabled = dashboardState.widgetDataPage === 0;
+}
+
+function prevWidgetPage() {
+    if (dashboardState.widgetDataPage > 0) {
+        dashboardState.widgetDataPage--;
+        fetchWidgetData(dashboardState.selectedDashboardId, dashboardState.currentWidgetId);
+    }
+}
+
+function nextWidgetPage() {
+    dashboardState.widgetDataPage++;
+    fetchWidgetData(dashboardState.selectedDashboardId, dashboardState.currentWidgetId);
+}
+
+function refreshWidgetData() {
+    if (dashboardState.currentWidgetId && dashboardState.selectedDashboardId) {
+        dashboardState.widgetDataPage = 0;
+        fetchWidgetData(dashboardState.selectedDashboardId, dashboardState.currentWidgetId);
+    }
+}
+
+function closeWidgetData() {
+    document.getElementById('widget-data-view').style.display = 'none';
+    dashboardState.currentWidgetId = null;
+}
+
+async function createWidget() {
+    if (!dashboardState.selectedDashboardId) {
+        showToast('Please select a dashboard first', 'warning');
+        return;
+    }
+
+    const name = document.getElementById('widget-name').value;
+    const type = document.getElementById('widget-type').value;
+    const description = document.getElementById('widget-description').value;
+    const configStr = document.getElementById('widget-config').value;
+
+    if (!name) {
+        showToast('Widget name is required', 'error');
+        return;
+    }
+
+    let config = {};
+    if (configStr) {
+        try {
+            config = JSON.parse(configStr);
+        } catch (e) {
+            showToast('Invalid JSON in configuration field', 'error');
+            return;
+        }
+    }
+
+    const widgetConfig = {
+        name,
+        type,
+        description,
+        config
+    };
+
+    showToast('Creating widget...', 'info');
+    const response = await api.createWidget(dashboardState.selectedDashboardId, widgetConfig);
+
+    if (response.success) {
+        showToast('Widget created successfully', 'success');
+        closeModal();
+        // Clear form
+        document.getElementById('widget-name').value = '';
+        document.getElementById('widget-description').value = '';
+        document.getElementById('widget-config').value = '';
+        // Reload widgets
+        await loadDashboardWidgets(dashboardState.selectedDashboardId);
+    } else {
+        showToast(`Failed to create widget: ${response.error}`, 'error');
+    }
+}
+
+async function deleteWidgetConfirm(dashboardId, widgetId) {
+    if (!confirm('Are you sure you want to delete this widget?')) return;
+
+    showToast('Deleting widget...', 'info');
+    const response = await api.deleteWidget(dashboardId, widgetId);
+
+    if (response.success) {
+        showToast('Widget deleted successfully', 'success');
+        await loadDashboardWidgets(dashboardId);
+        // Close data view if this widget was being viewed
+        if (dashboardState.currentWidgetId == widgetId) {
+            closeWidgetData();
+        }
+    } else {
+        showToast(`Failed to delete widget: ${response.error}`, 'error');
+    }
+}
+
+function refreshDashboards() {
+    loadDashboards();
+}
+
 // ==================== History Functions ====================
 
 async function loadHistory() {
@@ -787,3 +1161,14 @@ window.runDQCheck = runDQCheck;
 window.clearHistory = clearHistory;
 window.saveSettings = saveSettings;
 window.testConnection = testConnection;
+// Dashboard functions
+window.refreshDashboards = refreshDashboards;
+window.onDashboardChange = onDashboardChange;
+window.setCurrentDashboard = setCurrentDashboard;
+window.viewWidgetData = viewWidgetData;
+window.closeWidgetData = closeWidgetData;
+window.createWidget = createWidget;
+window.deleteWidgetConfirm = deleteWidgetConfirm;
+window.prevWidgetPage = prevWidgetPage;
+window.nextWidgetPage = nextWidgetPage;
+window.refreshWidgetData = refreshWidgetData;

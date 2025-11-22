@@ -326,6 +326,99 @@ def execute_workflow(workflow_id):
     return jsonify(result)
 
 
+# ==================== Dashboard Routes ====================
+
+@app.route('/api/dashboards', methods=['GET'])
+def list_dashboards():
+    """List all available dashboards."""
+    client = get_dvsum_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Not configured'}), 400
+
+    result = client.list_dashboards()
+    return jsonify(result)
+
+
+@app.route('/api/dashboards/current', methods=['GET'])
+def get_current_dashboard():
+    """Get the current dashboard."""
+    client = get_dvsum_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Not configured'}), 400
+
+    result = client.get_current_dashboard()
+    return jsonify(result)
+
+
+@app.route('/api/dashboards/<int:dashboard_id>/current', methods=['POST'])
+def set_current_dashboard(dashboard_id):
+    """Set a dashboard as the current view."""
+    client = get_dvsum_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Not configured'}), 400
+
+    result = client.set_current_dashboard(dashboard_id)
+    return jsonify(result)
+
+
+@app.route('/api/dashboards/<int:dashboard_id>/widgets', methods=['GET'])
+def get_dashboard_widgets(dashboard_id):
+    """Get all widgets for a dashboard."""
+    client = get_dvsum_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Not configured'}), 400
+
+    result = client.get_dashboard_widgets(dashboard_id)
+    return jsonify(result)
+
+
+@app.route('/api/dashboards/<int:dashboard_id>/widgets', methods=['POST'])
+def create_widget(dashboard_id):
+    """Create a new widget on a dashboard."""
+    client = get_dvsum_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Not configured'}), 400
+
+    result = client.create_widget(dashboard_id, request.json)
+    return jsonify(result)
+
+
+@app.route('/api/dashboards/<int:dashboard_id>/widgets/<int:widget_id>/data', methods=['GET'])
+def get_widget_data(dashboard_id, widget_id):
+    """Get data for a specific widget."""
+    client = get_dvsum_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Not configured'}), 400
+
+    time_zone = request.args.get('time_zone', -300, type=int)
+    size = request.args.get('size', type=int)
+    offset = request.args.get('offset', type=int)
+    sort_key = request.args.get('sort_key')
+    sort_by = request.args.get('sort_by', 'asc')
+
+    result = client.get_widget_data(
+        dashboard_id,
+        widget_id,
+        time_zone=time_zone,
+        size=size,
+        offset=offset,
+        sort_key=sort_key,
+        sort_by=sort_by
+    )
+    return jsonify(result)
+
+
+@app.route('/api/dashboards/<int:dashboard_id>/widgets/<int:widget_id>', methods=['DELETE'])
+def delete_widget(dashboard_id, widget_id):
+    """Delete a widget from a dashboard."""
+    client = get_dvsum_client()
+    if not client:
+        return jsonify({'success': False, 'error': 'Not configured'}), 400
+
+    result = client.delete_widget(dashboard_id, widget_id)
+    return jsonify(result)
+
+
 # ==================== Data Quality Routes ====================
 
 @app.route('/api/dataquality/check', methods=['POST'])
