@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DVSum Agentic AI Automation</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">&#9670;</span>
+                    <span class="logo-text">DVSum AI</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-section="chat">
+                    <span class="nav-icon">&#128172;</span>
+                    <span>AI Chat</span>
+                </a>
+                <a href="#" class="nav-item" data-section="agents">
+                    <span class="nav-icon">&#129302;</span>
+                    <span>Agents</span>
+                </a>
+                <a href="#" class="nav-item" data-section="workflows">
+                    <span class="nav-icon">&#9881;</span>
+                    <span>Workflows</span>
+                </a>
+                <a href="#" class="nav-item" data-section="datasources">
+                    <span class="nav-icon">&#128451;</span>
+                    <span>Data Sources</span>
+                </a>
+                <a href="#" class="nav-item" data-section="dataquality">
+                    <span class="nav-icon">&#9989;</span>
+                    <span>Data Quality</span>
+                </a>
+                <a href="#" class="nav-item" data-section="history">
+                    <span class="nav-icon">&#128336;</span>
+                    <span>History</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a href="#" class="nav-item" data-section="settings">
+                    <span class="nav-icon">&#9881;</span>
+                    <span>Settings</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="main-header">
+                <div class="header-title">
+                    <h1 id="page-title">Agentic AI Chat</h1>
+                    <span class="connection-status" id="connection-status">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Not Connected</span>
+                    </span>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" id="clear-btn">Clear Chat</button>
+                </div>
+            </header>
+
+            <!-- Content Sections -->
+            <div class="content-wrapper">
+                <!-- Chat Section -->
+                <section class="content-section active" id="section-chat">
+                    <div class="chat-container">
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="welcome-message">
+                                <h2>Welcome to DVSum Agentic AI</h2>
+                                <p>I can help you with:</p>
+                                <div class="capabilities-grid">
+                                    <div class="capability-card" onclick="insertSuggestion('Show me all available agents')">
+                                        <span class="capability-icon">&#129302;</span>
+                                        <span>List Agents</span>
+                                    </div>
+                                    <div class="capability-card" onclick="insertSuggestion('Analyze data quality issues')">
+                                        <span class="capability-icon">&#128202;</span>
+                                        <span>Analyze Data</span>
+                                    </div>
+                                    <div class="capability-card" onclick="insertSuggestion('Run a troubleshooting diagnostic')">
+                                        <span class="capability-icon">&#128295;</span>
+                                        <span>Troubleshoot</span>
+                                    </div>
+                                    <div class="capability-card" onclick="insertSuggestion('Create a summary report')">
+                                        <span class="capability-icon">&#128196;</span>
+                                        <span>Generate Reports</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="chat-input-container">
+                            <div class="chat-input-wrapper">
+                                <textarea
+                                    id="chat-input"
+                                    placeholder="Ask me anything... (e.g., 'Show data quality issues', 'Run workflow X', 'Analyze performance')"
+                                    rows="1"
+                                ></textarea>
+                                <button class="send-btn" id="send-btn">
+                                    <span>&#10148;</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Agents Section -->
+                <section class="content-section" id="section-agents">
+                    <div class="section-header">
+                        <h2>AI Agents</h2>
+                        <button class="btn btn-primary" onclick="openModal('create-agent-modal')">
+                            + Create Agent
+                        </button>
+                    </div>
+                    <div class="cards-grid" id="agents-grid">
+                        <div class="loading-placeholder">Loading agents...</div>
+                    </div>
+                </section>
+
+                <!-- Workflows Section -->
+                <section class="content-section" id="section-workflows">
+                    <div class="section-header">
+                        <h2>Automation Workflows</h2>
+                        <button class="btn btn-primary" onclick="openModal('create-workflow-modal')">
+                            + Create Workflow
+                        </button>
+                    </div>
+                    <div class="cards-grid" id="workflows-grid">
+                        <div class="loading-placeholder">Loading workflows...</div>
+                    </div>
+                </section>
+
+                <!-- Data Sources Section -->
+                <section class="content-section" id="section-datasources">
+                    <div class="section-header">
+                        <h2>Data Sources</h2>
+                        <button class="btn btn-primary" onclick="openModal('connect-datasource-modal')">
+                            + Connect Source
+                        </button>
+                    </div>
+                    <div class="cards-grid" id="datasources-grid">
+                        <div class="loading-placeholder">Loading data sources...</div>
+                    </div>
+                </section>
+
+                <!-- Data Quality Section -->
+                <section class="content-section" id="section-dataquality">
+                    <div class="section-header">
+                        <h2>Data Quality</h2>
+                        <button class="btn btn-primary" onclick="runDQCheck()">
+                            Run DQ Check
+                        </button>
+                    </div>
+                    <div class="dq-dashboard">
+                        <div class="dq-stats" id="dq-stats">
+                            <div class="stat-card">
+                                <span class="stat-value" id="dq-total">--</span>
+                                <span class="stat-label">Total Checks</span>
+                            </div>
+                            <div class="stat-card success">
+                                <span class="stat-value" id="dq-passed">--</span>
+                                <span class="stat-label">Passed</span>
+                            </div>
+                            <div class="stat-card warning">
+                                <span class="stat-value" id="dq-warnings">--</span>
+                                <span class="stat-label">Warnings</span>
+                            </div>
+                            <div class="stat-card error">
+                                <span class="stat-value" id="dq-errors">--</span>
+                                <span class="stat-label">Errors</span>
+                            </div>
+                        </div>
+                        <div class="dq-exceptions" id="dq-exceptions">
+                            <h3>Exceptions</h3>
+                            <div class="exceptions-list" id="exceptions-list">
+                                <p class="no-data">No exceptions found</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- History Section -->
+                <section class="content-section" id="section-history">
+                    <div class="section-header">
+                        <h2>Execution History</h2>
+                        <button class="btn btn-secondary" onclick="clearHistory()">
+                            Clear History
+                        </button>
+                    </div>
+                    <div class="history-list" id="history-list">
+                        <p class="no-data">No execution history</p>
+                    </div>
+                </section>
+
+                <!-- Settings Section -->
+                <section class="content-section" id="section-settings">
+                    <div class="section-header">
+                        <h2>Settings</h2>
+                    </div>
+                    <div class="settings-form">
+                        <div class="settings-group">
+                            <h3>DVSum API Configuration</h3>
+                            <div class="form-group">
+                                <label for="api-base-url">API Base URL</label>
+                                <input type="text" id="api-base-url" placeholder="https://apis-doc.dvsum.ai">
+                            </div>
+                            <div class="form-group">
+                                <label for="api-key">API Key</label>
+                                <input type="password" id="api-key" placeholder="Your DVSum API Key">
+                            </div>
+                            <div class="form-group">
+                                <label for="tenant-id">Tenant ID (Optional)</label>
+                                <input type="text" id="tenant-id" placeholder="Your Tenant ID">
+                            </div>
+                            <div class="form-actions">
+                                <button class="btn btn-secondary" onclick="testConnection()">Test Connection</button>
+                                <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="modal-overlay">
+        <!-- Create Agent Modal -->
+        <div class="modal" id="create-agent-modal">
+            <div class="modal-header">
+                <h3>Create New Agent</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="agent-name">Agent Name</label>
+                    <input type="text" id="agent-name" placeholder="My Agent">
+                </div>
+                <div class="form-group">
+                    <label for="agent-type">Agent Type</label>
+                    <select id="agent-type">
+                        <option value="troubleshoot">Troubleshooting</option>
+                        <option value="categorization">Categorization</option>
+                        <option value="query">Query</option>
+                        <option value="automation">Automation</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="agent-description">Description</label>
+                    <textarea id="agent-description" placeholder="Describe what this agent does..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="agent-rules">Rules (JSON)</label>
+                    <textarea id="agent-rules" placeholder='{"rule1": "value1"}'></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createAgent()">Create Agent</button>
+            </div>
+        </div>
+
+        <!-- Create Workflow Modal -->
+        <div class="modal" id="create-workflow-modal">
+            <div class="modal-header">
+                <h3>Create New Workflow</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="workflow-name">Workflow Name</label>
+                    <input type="text" id="workflow-name" placeholder="My Workflow">
+                </div>
+                <div class="form-group">
+                    <label for="workflow-trigger">Trigger</label>
+                    <select id="workflow-trigger">
+                        <option value="manual">Manual</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="event">Event-based</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="workflow-steps">Steps (JSON)</label>
+                    <textarea id="workflow-steps" placeholder='[{"action": "query", "params": {}}]'></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="createWorkflow()">Create Workflow</button>
+            </div>
+        </div>
+
+        <!-- Connect Data Source Modal -->
+        <div class="modal" id="connect-datasource-modal">
+            <div class="modal-header">
+                <h3>Connect Data Source</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="datasource-name">Name</label>
+                    <input type="text" id="datasource-name" placeholder="My Database">
+                </div>
+                <div class="form-group">
+                    <label for="datasource-type">Type</label>
+                    <select id="datasource-type">
+                        <option value="database">Database</option>
+                        <option value="api">API</option>
+                        <option value="file">File</option>
+                        <option value="datalake">Data Lake</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="datasource-connection">Connection String</label>
+                    <input type="text" id="datasource-connection" placeholder="Connection details...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="connectDataSource()">Connect</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
