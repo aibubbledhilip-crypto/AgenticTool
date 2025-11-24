@@ -7,7 +7,16 @@ Uses OAuth2 client credentials flow for authentication.
 import requests
 import base64
 import time
-from typing import Optional, Dict, Any, List
+import ssl
+import os
+from typing import Optional, Dict, Any, List, Union
+
+# Try to import certifi for better CA certificate handling
+try:
+    import certifi
+    CERTIFI_AVAILABLE = True
+except ImportError:
+    CERTIFI_AVAILABLE = False
 
 
 class DVSumClient:
@@ -25,7 +34,8 @@ class DVSumClient:
         base_url: Optional[str] = None,
         auth_url: Optional[str] = None,
         tenant_id: Optional[str] = None,
-        websocket_url: Optional[str] = None
+        websocket_url: Optional[str] = None,
+        ssl_verify: Union[bool, str, None] = None
     ):
         """
         Initialize the DVSum API client with OAuth2 credentials.
@@ -37,6 +47,11 @@ class DVSumClient:
             auth_url: The DVSum Auth URL (default: https://auth.dvsum.ai/oauth2/token)
             tenant_id: Optional tenant ID for multi-tenant setups
             websocket_url: WebSocket URL for AI Agent (default: wss://...)
+            ssl_verify: SSL certificate verification setting:
+                        - True: Enable SSL verification (default)
+                        - False: Disable SSL verification (not recommended for production)
+                        - str: Path to CA bundle file or directory
+                        - None: Auto-detect (use certifi if available, else system default)
         """
         self.client_id = client_id
         self.client_secret = client_secret
@@ -45,13 +60,53 @@ class DVSumClient:
         self.tenant_id = tenant_id
         self.websocket_url = websocket_url or self.DEFAULT_WEBSOCKET_URL
 
+        # SSL verification configuration
+        self.ssl_verify = self._resolve_ssl_verify(ssl_verify)
+
         # Token management
         self._access_token: Optional[str] = None
         self._token_expires_at: float = 0
 
         # Session for API requests
         self.session = requests.Session()
+        self.session.verify = self.ssl_verify
         self._setup_base_headers()
+
+    def _resolve_ssl_verify(self, ssl_verify: Union[bool, str, None]) -> Union[bool, str]:
+        """
+        Resolve SSL verification setting.
+
+        Args:
+            ssl_verify: User-provided SSL verification setting
+
+        Returns:
+            Resolved SSL verification value for requests library
+        """
+        # If explicitly set, use that value
+        if ssl_verify is not None:
+            return ssl_verify
+
+        # Check environment variable for SSL verification override
+        env_ssl_verify = os.environ.get('DVSUM_SSL_VERIFY', '').lower()
+        if env_ssl_verify in ('false', '0', 'no', 'off'):
+            return False
+        elif env_ssl_verify in ('true', '1', 'yes', 'on'):
+            return True
+        elif env_ssl_verify and os.path.exists(env_ssl_verify):
+            # Path to custom CA bundle
+            return env_ssl_verify
+
+        # Check for custom CA bundle path in environment
+        ca_bundle = os.environ.get('DVSUM_CA_BUNDLE') or os.environ.get('REQUESTS_CA_BUNDLE')
+        if ca_bundle and os.path.exists(ca_bundle):
+            return ca_bundle
+
+        # Use certifi if available (has more up-to-date CA certificates)
+        if CERTIFI_AVAILABLE:
+            return certifi.where()
+
+        # Fall back to system default
+        return True
 
     def _setup_base_headers(self):
         """Setup base headers for API requests."""
@@ -92,7 +147,8 @@ class DVSumClient:
                 self.auth_url,
                 headers=headers,
                 data=data,
-                timeout=30
+                timeout=30,
+                verify=self.ssl_verify
             )
             response.raise_for_status()
 

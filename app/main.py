@@ -23,11 +23,31 @@ dvsum_client = None
 agentic_engine = None
 
 
+def _parse_ssl_verify(value) -> bool | str | None:
+    """Parse SSL verify value from config or environment."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        if value.lower() in ('true', '1', 'yes', 'on'):
+            return True
+        elif value.lower() in ('false', '0', 'no', 'off'):
+            return False
+        elif os.path.exists(value):
+            # Treat as path to CA bundle
+            return value
+    return None
+
+
 def get_dvsum_client(config: dict = None) -> DVSumClient:
     """Get or create DVSum client instance."""
     global dvsum_client
 
     if config:
+        # Parse SSL verify setting from config
+        ssl_verify = _parse_ssl_verify(config.get('ssl_verify'))
+
         # Configuration provided via API
         dvsum_client = DVSumClient(
             client_id=config.get('client_id', os.getenv('DVSUM_CLIENT_ID', '')),
@@ -35,7 +55,8 @@ def get_dvsum_client(config: dict = None) -> DVSumClient:
             base_url=config.get('base_url', os.getenv('DVSUM_API_BASE_URL')),
             auth_url=config.get('auth_url', os.getenv('DVSUM_AUTH_URL')),
             tenant_id=config.get('tenant_id', os.getenv('DVSUM_TENANT_ID')),
-            websocket_url=config.get('websocket_url', os.getenv('DVSUM_WEBSOCKET_URL'))
+            websocket_url=config.get('websocket_url', os.getenv('DVSUM_WEBSOCKET_URL')),
+            ssl_verify=ssl_verify
         )
     elif dvsum_client is None:
         # Initialize from environment variables
@@ -48,7 +69,8 @@ def get_dvsum_client(config: dict = None) -> DVSumClient:
                 base_url=os.getenv('DVSUM_API_BASE_URL'),
                 auth_url=os.getenv('DVSUM_AUTH_URL'),
                 tenant_id=os.getenv('DVSUM_TENANT_ID'),
-                websocket_url=os.getenv('DVSUM_WEBSOCKET_URL')
+                websocket_url=os.getenv('DVSUM_WEBSOCKET_URL'),
+                ssl_verify=None  # Will auto-detect from env vars
             )
 
     return dvsum_client
